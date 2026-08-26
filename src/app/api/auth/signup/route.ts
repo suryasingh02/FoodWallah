@@ -10,12 +10,12 @@ export async function POST(request: Request) {
   const password = body.password ?? "";
   const role = body.role === "vendor" ? "vendor" : "customer";
 
-  if (name.length < 2 || phone.length < 7 || password.length < 6) {
-    return NextResponse.json({ error: "Name and a valid mobile number are required. Passwords need 6+ characters." }, { status: 400 });
+  if (name.length < 2 || phone.length < 7 || !email || !email.includes("@") || password.length < 6) {
+    return NextResponse.json({ error: "Name, email, and a valid mobile number are required. Passwords need 6+ characters." }, { status: 400 });
   }
 
   const exists = db.prepare("SELECT 1 FROM users WHERE lower(email) = ? OR phone = ? OR id = ?").get(email || null, phone, email || phone);
-  if (exists) return NextResponse.json({ error: "That username is already in use." }, { status: 409 });
+  if (exists) return NextResponse.json({ error: "That email or mobile number is already in use." }, { status: 409 });
 
   const user = createUser(name, password, role, email, body.address, phone, body.shopName);
   const response = NextResponse.json({ user });

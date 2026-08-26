@@ -68,6 +68,13 @@ function createDatabase() {
       vendor_id TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      token_hash TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      expires_at DATETIME NOT NULL,
+      used_at DATETIME
+    );
   `);
 
   try {

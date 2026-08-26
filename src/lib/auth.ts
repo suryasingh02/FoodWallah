@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
 
@@ -31,6 +31,10 @@ function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
   const hash = scryptSync(password, salt, 64).toString("hex");
   return `${salt}:${hash}`;
+}
+
+function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 function verifyPassword(password: string, storedHash: string) {
@@ -134,6 +138,27 @@ export function setSession(user: AuthUser) {
 
 export function deleteUser(id: string) {
   db.prepare("DELETE FROM users WHERE id = ?").run(id);
+}
+
+export function createPasswordResetToken(email: string) {
+  const user = db.prepare("SELECT id, name, email FROM users WHERE lower(email) = lower(?)").get(email.trim()) as { id: string; name: string; email: string } | undefined;
+  if (!user) return null;
+
+  const token = randomBytes(32).toString("hex");
+  db.prepare("DELETE FROM password_reset_tokens WHERE user_id = ? OR expires_at <= CURRENT_TIMESTAMP").run(user.id);
+  db.prepare("INSERT INTO password_reset_tokens (token_hash, user_id, expires_at) VALUES (?, ?, datetime('now', '+30 minutes'))")
+    .run(hashResetToken(token), user.id);
+  return { email: user.email, name: user.name, token };
+}
+
+export function resetPassword(token: string, password: string) {
+  const reset = db.prepare("SELECT user_id FROM password_reset_tokens WHERE token_hash = ? AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP")
+    .get(hashResetToken(token)) as { user_id: string } | undefined;
+  if (!reset) return false;
+
+  db.prepare("UPDATE users SET password_hash = ? WHERE id = ?").run(hashPassword(password), reset.user_id);
+  db.prepare("UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP WHERE token_hash = ?").run(hashResetToken(token));
+  return true;
 }
 
 export function updateUserAddress(id: string, address: string | null, pickupSelected = false) {

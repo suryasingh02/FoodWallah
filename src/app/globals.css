@@ -1246,6 +1246,28 @@ button.order-history-row:hover {
   padding: 9px 10px;
 }
 
+.forgot-password-button,
+.auth-text-button {
+  background: transparent;
+  border: 0;
+  color: var(--coral);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  justify-self: start;
+  padding: 4px 0;
+}
+
+.forgot-password-button {
+  margin: 10px 0 2px;
+}
+
+.auth-text-button {
+  justify-self: center;
+  margin-top: 4px;
+}
+
 .vendor-page {
   min-height: calc(100dvh - 76px);
 }

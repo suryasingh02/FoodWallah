@@ -24,6 +24,8 @@ Set `AUTH_SECRET` in `.env.local` before deploying so sessions use a private pro
 
 For Azure App Service, enable persistent storage and set the application setting `SQLITE_DIR` to `/home/data` so the local SQLite database survives deployments and restarts.
 
+Password reset email delivery uses Resend. Set `RESEND_API_KEY`, `AUTH_FROM_EMAIL` (a verified sender), and `APP_URL` in Azure App Service application settings.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

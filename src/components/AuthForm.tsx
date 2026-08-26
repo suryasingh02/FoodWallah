@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
-type AuthMode = "signin" | "signup";
+type AuthMode = "signin" | "signup" | "forgot";
 type UserRole = "customer" | "vendor";
 
 type SignedInUser = {
@@ -33,6 +33,7 @@ export function AuthForm() {
   const [isChangingAddress, setIsChangingAddress] = useState(false);
   const [isAddingAddress, setIsAddingAddress] = useState(false);
   const [user, setUser] = useState<SignedInUser | null>(null);
+  const [resetEmail, setResetEmail] = useState("");
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -67,6 +68,16 @@ export function AuthForm() {
     const nextPath = new URLSearchParams(window.location.search).get("next") || "/";
     router.push(nextPath.startsWith("/") ? nextPath : "/");
     router.refresh();
+  };
+
+  const requestReset = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage("");
+    const response = await fetch("/api/auth/forgot-password", { body: JSON.stringify({ email: resetEmail }), headers: { "Content-Type": "application/json" }, method: "POST" });
+    const result = await response.json() as { error?: string; message?: string };
+    setIsSubmitting(false);
+    setMessage(result.error ?? result.message ?? "");
   };
 
   const signOut = async () => {
@@ -205,10 +216,21 @@ export function AuthForm() {
 
   return (
     <div className="auth-form-wrap">
+      {mode === "forgot" ? (
+        <form className="auth-form" onSubmit={requestReset}>
+          <label htmlFor="reset-email">Account email</label>
+          <input id="reset-email" onChange={(event) => setResetEmail(event.target.value)} required type="email" value={resetEmail} />
+          {message ? <p className="auth-message" role="alert">{message}</p> : null}
+          <button className="checkout-button" disabled={isSubmitting} type="submit">{isSubmitting ? "Sending..." : "Send reset link"}</button>
+          <button className="auth-text-button" onClick={() => { setMode("signin"); setMessage(""); }} type="button">Back to sign in</button>
+        </form>
+      ) : (
+      <>
       <div className="auth-switcher" aria-label="Authentication mode">
         <button className={mode === "signin" ? "is-active" : ""} onClick={() => setMode("signin")} type="button">Sign in</button>
         <button className={mode === "signup" ? "is-active" : ""} onClick={() => setMode("signup")} type="button">Create account</button>
       </div>
+      {mode === "signin" ? <button className="forgot-password-button" onClick={() => { setMode("forgot"); setMessage(""); }} type="button">Forgot password?</button> : null}
 
       <div className="auth-socials">
         <button onClick={() => setMessage("Google sign-in needs OAuth credentials in the app environment.")} type="button">Continue with Google</button>
@@ -227,17 +249,15 @@ export function AuthForm() {
           <>
             <label htmlFor="username">Name</label>
             <input id="username" onChange={(event) => setName(event.target.value)} required value={name} />
+            <label htmlFor="email">Email address</label>
+            <input id="email" onChange={(event) => setEmail(event.target.value)} required type="email" value={email} />
+            <label htmlFor="phone">Mobile number</label>
+            <input id="phone" onChange={(event) => setPhone(event.target.value)} required type="tel" value={phone} />
           </>
         ) : null}
-        <label htmlFor="password">Password</label>
-        <input id="password" minLength={6} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
 
         {mode === "signup" ? (
           <>
-            <label htmlFor="email">Email address (optional)</label>
-            <input id="email" onChange={(event) => setEmail(event.target.value)} type="email" value={email} />
-            <label htmlFor="phone">Mobile number</label>
-            <input id="phone" onChange={(event) => setPhone(event.target.value)} required type="tel" value={phone} />
             <label htmlFor="address">Address</label>
             <input id="address" onChange={(event) => setAddress(event.target.value)} value={address} />
             <label htmlFor="role">Account type</label>
@@ -254,11 +274,16 @@ export function AuthForm() {
           </>
         ) : null}
 
+        <label htmlFor="password">Password</label>
+        <input id="password" minLength={6} onChange={(event) => setPassword(event.target.value)} required type="password" value={password} />
+
         {message ? <p className="auth-message" role="alert">{message}</p> : null}
         <button className="checkout-button" disabled={isSubmitting} type="submit">
           {isSubmitting ? "Please wait..." : mode === "signin" ? "Sign in" : "Create account"}
         </button>
       </form>
+      </>
+      )}
     </div>
   );
 }
