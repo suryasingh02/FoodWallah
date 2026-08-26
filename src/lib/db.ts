@@ -317,6 +317,7 @@ export function setMenuAvailability(id: number, isAvailable: boolean) {
 
 export function setRestaurantStatus(userId: string, isOpen: boolean) {
   db.prepare("UPDATE users SET restaurant_open = ? WHERE id = ? AND role = 'vendor'").run(isOpen ? 1 : 0, userId);
+  orderEvents.emit("restaurant-updated", { vendorId: userId, isOpen });
 }
 
 export function getCustomerOrders(customerId: string) {

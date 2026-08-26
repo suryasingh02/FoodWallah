@@ -2,9 +2,23 @@
 
 import { MapPin, UserRound } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import type { Vendor } from "@/lib/db";
 
 export function VendorChooser({ customerName, vendors }: { customerName?: string; vendors: Vendor[] }) {
+  const [liveVendors, setLiveVendors] = useState(vendors);
+
+  useEffect(() => {
+    const events = new EventSource("/api/restaurant/stream");
+    const updateVendor = (event: MessageEvent<string>) => {
+      const update = JSON.parse(event.data) as { vendorId: string; isOpen: boolean };
+      setLiveVendors((currentVendors) => currentVendors.map((vendor) => vendor.id === update.vendorId ? { ...vendor, restaurant_open: update.isOpen ? 1 : 0 } : vendor));
+    };
+
+    events.addEventListener("restaurant-updated", updateVendor);
+    return () => { events.removeEventListener("restaurant-updated", updateVendor); events.close(); };
+  }, []);
+
   return (
     <main className="vendor-chooser">
       <header className="vendor-chooser-header">
@@ -16,8 +30,8 @@ export function VendorChooser({ customerName, vendors }: { customerName?: string
         <Link className="icon-button icon-button-secondary" href="/auth" aria-label="Open account"><UserRound aria-hidden="true" size={20} /></Link>
       </header>
       <section className="vendor-chooser-list" aria-labelledby="vendor-chooser-title">
-        <div className="vendor-section-heading"><h2 id="vendor-chooser-title">Available vendors</h2><span>{vendors.length} nearby</span></div>
-        {vendors.length > 0 ? vendors.map((vendor) => {
+        <div className="vendor-section-heading"><h2 id="vendor-chooser-title">Available vendors</h2><span>{liveVendors.length} nearby</span></div>
+        {liveVendors.length > 0 ? liveVendors.map((vendor) => {
           const isOpen = Boolean(vendor.restaurant_open);
           return isOpen ? (
             <Link className="vendor-choice" href={`/menu/${encodeURIComponent(vendor.id)}`} key={vendor.id}>
