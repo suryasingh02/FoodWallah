@@ -169,7 +169,7 @@ export const db = globalWithDatabase.restaurantDatabase ?? createDatabase();
 globalWithDatabase.restaurantDatabase = db;
 
 export function getMenu(vendorId?: string): MenuItem[] {
-  return getAllMenu(vendorId).filter((item) => item.is_available === 1);
+  return getAllMenu(vendorId);
 }
 
 export function getAllMenu(vendorId?: string): MenuItem[] {
@@ -313,6 +313,8 @@ export function deleteMenuItem(id: number) {
 
 export function setMenuAvailability(id: number, isAvailable: boolean) {
   db.prepare("UPDATE menu_items SET is_available = ? WHERE id = ?").run(isAvailable ? 1 : 0, id);
+  const item = db.prepare("SELECT vendor_id FROM menu_items WHERE id = ?").get(id) as { vendor_id: string | null } | undefined;
+  orderEvents.emit("menu-availability-updated", { id, isAvailable, vendorId: item?.vendor_id ?? null });
 }
 
 export function setRestaurantStatus(userId: string, isOpen: boolean) {

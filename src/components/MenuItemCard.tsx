@@ -8,6 +8,7 @@ type MenuItemCardProps = {
   description: string;
   imageUrl: string;
   imageLabel: string;
+  isAvailable: boolean;
   isRestaurantOpen: boolean;
   maxPerCustomer: number;
   maxPerDay: number;
@@ -24,7 +25,7 @@ const formatPrice = new Intl.NumberFormat("en-IN", {
   style: "currency",
 });
 
-export function MenuItemCard({ category, description, imageUrl, imageLabel, initials, isRestaurantOpen, maxPerCustomer, maxPerDay, name, orderedToday, price, vendorId }: MenuItemCardProps) {
+export function MenuItemCard({ category, description, imageUrl, imageLabel, initials, isAvailable, isRestaurantOpen, maxPerCustomer, maxPerDay, name, orderedToday, price, vendorId }: MenuItemCardProps) {
   const { addItem, decreaseItem, getQuantity } = useCart();
   const quantity = getQuantity(name);
   const reachedLimit = quantity >= maxPerCustomer || orderedToday + quantity >= maxPerDay;
@@ -49,9 +50,9 @@ export function MenuItemCard({ category, description, imageUrl, imageLabel, init
         </div>
         <p className="item-description">{description}</p>
         {quantity === 0 ? (
-          <button className="add-button" disabled={!isRestaurantOpen || reachedLimit} onClick={() => addItem({ name, price, vendorId })} type="button">
+          <button className="add-button" disabled={!isRestaurantOpen || !isAvailable || reachedLimit} onClick={() => addItem({ name, price, vendorId })} type="button">
             <Plus aria-hidden="true" size={16} strokeWidth={2.5} />
-            {!isRestaurantOpen ? "Closed" : reachedLimit ? "Item reached max limit" : "Add"}
+            {!isRestaurantOpen ? "Closed" : !isAvailable ? "Out of stock" : reachedLimit ? "Item reached max limit" : "Add"}
           </button>
         ) : (
           <div className="quantity-control" aria-label={`Quantity of ${name}`}>
@@ -59,7 +60,7 @@ export function MenuItemCard({ category, description, imageUrl, imageLabel, init
               <Minus aria-hidden="true" size={15} strokeWidth={2.5} />
             </button>
             <span aria-live="polite">{quantity}</span>
-            <button aria-label={`Add one ${name}`} disabled={!isRestaurantOpen || reachedLimit} onClick={() => addItem({ name, price, vendorId })} type="button">
+            <button aria-label={`Add one ${name}`} disabled={!isRestaurantOpen || !isAvailable || reachedLimit} onClick={() => addItem({ name, price, vendorId })} type="button">
               <Plus aria-hidden="true" size={15} strokeWidth={2.5} />
             </button>
           </div>

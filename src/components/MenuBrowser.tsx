@@ -2,18 +2,48 @@
 
 import { MapPin, ShoppingBag, UserRound } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MenuItem } from "@/lib/db";
 import { useCart } from "@/components/CartContext";
 import { MenuItemCard } from "@/components/MenuItemCard";
 
 export function MenuBrowser({ isRestaurantOpen, menuItems, vendorName }: { isRestaurantOpen: boolean; menuItems: MenuItem[]; vendorName?: string }) {
   const { itemCount } = useCart();
+  const [isOpen, setIsOpen] = useState(isRestaurantOpen);
+  const [liveMenuItems, setLiveMenuItems] = useState(menuItems);
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const categories = ["All", ...new Set(menuItems.map((item) => item.category))];
-  const visibleItems = selectedCategory === "All"
-    ? menuItems
-    : menuItems.filter((item) => item.category === selectedCategory);
+  const categories = ["All", ...new Set(liveMenuItems.map((item) => item.category))];
+  const visibleItems = [...(selectedCategory === "All"
+    ? liveMenuItems
+    : liveMenuItems.filter((item) => item.category === selectedCategory))].sort((firstItem, secondItem) => {
+    if (firstItem.is_available !== secondItem.is_available) return secondItem.is_available - firstItem.is_available;
+    return firstItem.name.localeCompare(secondItem.name);
+  });
+
+  useEffect(() => {
+    const events = new EventSource("/api/restaurant/stream");
+    const updateRestaurant = (event: MessageEvent<string>) => {
+      const update = JSON.parse(event.data) as { vendorId: string; isOpen: boolean };
+      const selectedVendorId = menuItems.find((item) => item.vendor_id)?.vendor_id;
+      if (!selectedVendorId || update.vendorId === selectedVendorId) setIsOpen(update.isOpen);
+    };
+
+    events.addEventListener("restaurant-updated", updateRestaurant);
+    return () => { events.removeEventListener("restaurant-updated", updateRestaurant); events.close(); };
+  }, [isRestaurantOpen, menuItems]);
+
+  useEffect(() => {
+    const events = new EventSource("/api/restaurant/stream");
+    const updateAvailability = (event: MessageEvent<string>) => {
+      const update = JSON.parse(event.data) as { id: number; isAvailable: boolean; vendorId: string | null };
+      const selectedVendorId = menuItems.find((item) => item.vendor_id)?.vendor_id;
+      if (update.vendorId && selectedVendorId && update.vendorId !== selectedVendorId) return;
+      setLiveMenuItems((currentItems) => currentItems.map((item) => item.id === update.id ? { ...item, is_available: update.isAvailable ? 1 : 0 } : item));
+    };
+
+    events.addEventListener("menu-availability-updated", updateAvailability);
+    return () => { events.removeEventListener("menu-availability-updated", updateAvailability); events.close(); };
+  }, [menuItems]);
 
   return (
     <div className="menu-page">
@@ -37,9 +67,9 @@ export function MenuBrowser({ isRestaurantOpen, menuItems, vendorName }: { isRes
         <MapPin aria-hidden="true" size={16} />
         <span>Pickup in Sector 18, Noida</span>
       </div>
-      <div className={`restaurant-status ${isRestaurantOpen ? "is-open" : "is-closed"}`}>
+      <div className={`restaurant-status ${isOpen ? "is-open" : "is-closed"}`}>
         <span className="status-dot" aria-hidden="true" />
-        {isRestaurantOpen ? "Open for orders" : "Currently closed"}
+        {isOpen ? "Open for orders" : "Currently closed"}
       </div>
 
       <section className="menu-section" aria-labelledby="categories-title">
@@ -69,7 +99,8 @@ export function MenuBrowser({ isRestaurantOpen, menuItems, vendorName }: { isRes
               imageUrl={item.image_url}
               imageLabel={`${item.name} image`}
               initials={item.name.split(" ").map((word) => word[0]).join("").slice(0, 2)}
-              isRestaurantOpen={isRestaurantOpen}
+              isRestaurantOpen={isOpen}
+              isAvailable={item.is_available === 1}
               key={item.id}
               maxPerCustomer={item.max_per_customer}
               maxPerDay={item.max_per_day}
